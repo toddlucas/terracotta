@@ -1,0 +1,10 @@
+*.exe
+*.dll
+*.obj
+*.pdb
+*.bak
+
+bin/
+.DS_Store
+.terraform/
+.vscode/
