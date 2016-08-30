@@ -109,7 +109,6 @@ func (s *Scanner) Scan() (Token, string, error) {
 	}
 
 	var text bytes.Buffer
-	var comment bytes.Buffer
 	for {
 		r := s.buffer.next()
 
@@ -126,17 +125,16 @@ func (s *Scanner) Scan() (Token, string, error) {
 				s.nextLine(r)
 				return TokenText, text.String(), nil
 			case '/':
+				text.WriteRune(r)
 				if s.buffer.current() == '*' {
-					comment.WriteRune(r)
-
 					s.buffer.next() // Skip *
-					comment.WriteRune('*')
+					text.WriteRune('*')
 
-					s.prev = s.state
+					s.prev = scanStateText // We're text now, not init
 					s.state = scanStateMultiComment
 					s.multiline = 0
 				} else {
-					comment.WriteRune(r)
+					s.state = scanStateText
 				}
 			case directivePrefixRune: // '!'
 				s.state = scanStateBang
@@ -196,12 +194,7 @@ func (s *Scanner) Scan() (Token, string, error) {
 				text.WriteRune(r)
 			case r == '\r' || r == '\n' || r == unicode.MaxRune:
 				s.nextLine(r)
-				// if r != unicode.MaxRune {
-				// 	s.buffer.push()
-				// }
 				s.state = scanStateLine
-				// s.nextLine(r)
-				// s.state = scanStateInit
 				return TokenDirective, text.String(), nil
 			case r == '#':
 				// Any single-line comments after a directive get eaten.
@@ -232,13 +225,7 @@ func (s *Scanner) Scan() (Token, string, error) {
 				// Ignore interstitial whitespace
 			case r == '\r' || r == '\n' || r == unicode.MaxRune:
 				s.nextLine(r)
-				// if r != unicode.MaxRune {
-				// 	s.buffer.push()
-				// }
 				s.state = scanStateLine
-				// s.nextLine(r)
-				// text.Reset()
-				// s.state = scanStateInit
 			case r == '_' || unicode.IsLetter(r):
 				s.state = scanStateIdentifier
 				text.WriteRune(r)
@@ -286,12 +273,7 @@ func (s *Scanner) Scan() (Token, string, error) {
 			switch {
 			case r == '\r' || r == '\n' || r == unicode.MaxRune:
 				s.nextLine(r)
-				// if r != unicode.MaxRune {
-				// 	s.buffer.push()
-				// }
 				s.state = scanStateLine
-				// s.nextLine(r)
-				// s.state = scanStateInit
 				return TokenIdentifier, text.String(), nil
 			case r == '_' || unicode.IsLetter(r):
 				text.WriteRune(r)
@@ -314,14 +296,8 @@ func (s *Scanner) Scan() (Token, string, error) {
 				s.buffer.push()
 			}
 
-			// switch {
-			// case r == '\r' || r == '\n' || r == unicode.MaxRune:
-			// 	s.nextLine(r)
 			s.state = scanStateInit
 			return TokenLine, "", nil
-			// default:
-			// 	return TokenNone, text.String(), ProcessingError{"Invalid state", s.line, 0, ProcessingInvalidState}
-			// }
 
 		case scanStateSingleComment:
 			if s.verbose {
@@ -357,37 +333,17 @@ func (s *Scanner) Scan() (Token, string, error) {
 
 					s.multiline = 0
 					s.state = s.prev
-				} else {
-					if s.prev == scanStateInit {
-						comment.WriteRune(r)
-					} else if s.prev == scanStateText {
-						text.WriteRune(r)
-					}
+				} else if s.prev == scanStateText {
+					text.WriteRune(r)
 				}
 			case '\r', '\n', unicode.MaxRune:
 				s.nextLine(r)
 				s.multiline++
-
-				if s.prev == scanStateInit {
-					// If we started in Init, but this is now multiline,
-					// we treat it as Text. Making this distinction allows
-					// us to resume Init processing for single line variants.
-					text.WriteString(comment.String())
-					s.prev = scanStateText
-				}
-
 				if s.prev == scanStateText {
 					return TokenText, text.String(), nil
-					// } else {
-					// 	if r != unicode.MaxRune {
-					// 		s.buffer.push()
-					// 	}
-					// 	s.state = scanStateLine
 				}
 			default:
-				if s.prev == scanStateInit {
-					comment.WriteRune(r)
-				} else if s.prev == scanStateText {
+				if s.prev == scanStateText {
 					text.WriteRune(r)
 				}
 			}

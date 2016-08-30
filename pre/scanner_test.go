@@ -164,9 +164,11 @@ func TestDireciveContainingComment(t *testing.T) {
 
 	scanExpectTokenText(t, &s, TokenText, "")
 	scanExpectTokenText(t, &s, TokenText, "var = ''")
-	scanExpectTokenText(t, &s, TokenDirective, "define")
-	scanExpectTokenText(t, &s, TokenIdentifier, "BAR")
-	scanExpectToken(t, &s, TokenLine)
+	// TODO: We should issue a warning here, but it would require special case scanning.
+	scanExpectTokenText(t, &s, TokenText, " /* !define FOO*/!define BAR")
+	// scanExpectTokenText(t, &s, TokenDirective, "define")
+	// scanExpectTokenText(t, &s, TokenIdentifier, "BAR")
+	// scanExpectToken(t, &s, TokenLine)
 	scanExpectTokenText(t, &s, TokenDirective, "if")
 	scanExpectTokenText(t, &s, TokenIdentifier, "FOO")
 	scanExpectToken(t, &s, TokenEnd)

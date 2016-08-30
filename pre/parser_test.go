@@ -20,7 +20,7 @@ func TestParseSimpleExpression(t *testing.T) {
 
 func TestParseExpressionVariations(t *testing.T) {
 	p := Parser{}
-	p.SetVerbose(false, false, true)
+	// p.SetVerbose(false, false, true)
 
 	//	p.SetText("\n!define FOO\n!if !(!FOO && BAR)\nvar a = 1")
 	p.SetText(`
@@ -180,6 +180,21 @@ func TestParseExtendedConditions(t *testing.T) {
 	p.Leave()
 }
 
+func TestParseEndOfFileMultilineComment(t *testing.T) {
+	p := Parser{}
+	// p.SetVerbose(true, true, true)
+
+	// Ensure that unterminated comments at the end of the file are emitted.
+	p.SetText("\n/* Unterminated comment\n*\n")
+
+	p.Enter()
+	parseExpectText(t, &p, "", true)
+	parseExpectText(t, &p, "/* Unterminated comment", true)
+	parseExpectText(t, &p, "*", true)
+	parseExpectEnd(t, &p)
+	p.Leave()
+}
+
 func TestParseSlashRegression(t *testing.T) {
 	p := Parser{}
 	// p.SetVerbose(true, true, true)
@@ -190,6 +205,23 @@ func TestParseSlashRegression(t *testing.T) {
 	p.Enter()
 	parseExpectText(t, &p, "", true)
 	parseExpectText(t, &p, "source = \"./vpc\"", true)
+	parseExpectEnd(t, &p)
+	p.Leave()
+}
+
+func TestParseMultilineCommentRegression(t *testing.T) {
+	p := Parser{}
+	// p.SetVerbose(true, true, true)
+
+	// Ensure that multiline comments that don't span lines are emitted.
+	p.SetText("\n/* Keep me */\n\n  /* And me */ \n/\n")
+
+	p.Enter()
+	parseExpectText(t, &p, "", true)
+	parseExpectText(t, &p, "/* Keep me */", true)
+	parseExpectText(t, &p, "", true)
+	parseExpectText(t, &p, "  /* And me */ ", true)
+	parseExpectText(t, &p, "/", true)
 	parseExpectEnd(t, &p)
 	p.Leave()
 }
